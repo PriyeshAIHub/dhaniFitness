@@ -1,0 +1,73 @@
+<div class="page dashboard">
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">WEEK {{ fitness.currentWeek() }} · YOUR FITNESS ADVENTURE</span>
+      <h1>Hey Dhani! <span>Ready for your next adventure?</span></h1>
+      <p>Your fitness adventure continues!</p>
+    </div>
+    <div class="hero-progress">
+      <div class="progress-ring" [style.--progress]="fitness.percentage() * 3.6 + 'deg'">
+        <div><strong>{{ fitness.percentage() }}%</strong><small>Complete</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats-grid" aria-label="Challenge progress">
+    <article class="stat-card points-card">
+      <span class="stat-icon">★</span>
+      <div><small>Total points</small><strong>{{ fitness.totalPoints() }}</strong><span>/ 1,820</span></div>
+    </article>
+    <article class="stat-card"><span class="stat-icon purple">✓</span><div><small>Workouts</small><strong>{{ fitness.approvedWorkouts() }}</strong><span>approved</span></div></article>
+    <article class="stat-card"><span class="stat-icon pink">Ⅲ</span><div><small>Current week</small><strong>{{ fitness.currentWeek() }}</strong><span>of 52</span></div></article>
+    <article class="stat-card"><span class="stat-icon coral">◆</span><div><small>Weeks completed</small><strong>{{ fitness.completedWeeks() }}</strong><span>keep going!</span></div></article>
+  </section>
+
+  <section class="section-block">
+    <div class="section-heading"><div><span class="kicker">THIS WEEK</span><h2>Your missions</h2></div><a routerLink="/workouts">View all 52 weeks →</a></div>
+    <div class="mission-grid">
+      @for (workout of currentWeek.workouts; track workout.id) {
+        <article class="mission-card">
+          <div class="mission-top">
+            <span class="mission-icon" [class]="workout.type">{{ workoutIcon(workout.type) }}</span>
+            <span class="status" [class.approved]="workout.status === 'approved'" [class.pending]="workout.status === 'pending'">{{ statusLabel(workout.status) }}</span>
+          </div>
+          <small>{{ workout.day }}</small>
+          <h3>{{ workout.title }}</h3>
+          <p>{{ workout.description }}</p>
+          <div class="mission-meta"><span>◷ {{ workout.duration }} min</span><span>+10 pts</span></div>
+          @if (workout.status === 'not-started') {
+            <button class="primary-button" (click)="submit(workout.id)">Mark complete</button>
+          } @else if (workout.status === 'pending') {
+            <button class="secondary-button" disabled>Waiting for approval</button>
+          } @else {
+            <button class="approved-button" disabled>✓ Approved</button>
+          }
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="lower-grid">
+    <article class="bonus-card">
+      <span class="bonus-icon">★</span>
+      <div><span class="kicker">WEEKLY BONUS</span><h3>Complete all 3 missions</h3><p>When a parent approves all three, earn an extra 5 points!</p></div>
+      <strong>+5</strong>
+    </article>
+    <article class="milestone-card">
+      <span class="milestone-icon">{{ nextMilestone.icon }}</span>
+      <div><span class="kicker">NEXT MILESTONE</span><h3>{{ nextMilestone.name }}</h3>
+        <div class="thin-progress"><span [style.width]="fitness.percentage() + '%'"></span></div>
+        <p>{{ nextMilestone.points - fitness.totalPoints() }} points to go</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="reward-preview">
+    <div class="phone-art" aria-label="iPhone reward illustration"><span class="phone-camera"></span><span class="phone-screen">D</span></div>
+    <div><span class="kicker">REWARD VAULT</span><h2>Your Ultimate Reward</h2><p>Earn 1,820 points to unlock your iPhone.</p>
+      <div class="reward-bar"><span [style.width]="fitness.percentage() + '%'"></span></div>
+      <small>{{ remainingPoints }} points remaining</small>
+    </div>
+    <a class="round-link" routerLink="/reward" aria-label="Open reward vault">→</a>
+  </section>
+</div>

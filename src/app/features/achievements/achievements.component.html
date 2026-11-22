@@ -1,0 +1,19 @@
+<div class="page">
+  <div class="title-row"><div><span class="kicker">YOUR ACHIEVEMENTS</span><h1>Trophy Room</h1></div><div class="earned-count">{{ fitness.achievements().filter(a => a.unlocked).length }} unlocked</div></div>
+  <section class="trophy-stats">
+    <article><span>★</span><div><strong>{{ fitness.totalPoints() }}</strong><small>Total points</small></div></article>
+    <article><span>✓</span><div><strong>{{ fitness.approvedWorkouts() }}</strong><small>Workouts approved</small></div></article>
+    <article><span>◆</span><div><strong>{{ fitness.completedWeeks() }}</strong><small>Weeks completed</small></div></article>
+  </section>
+  <section class="badge-grid">
+    @for (achievement of fitness.achievements(); track achievement.name) {
+      <article class="badge-card" [class.locked]="!achievement.unlocked">
+        @if (achievement.unlocked) { <div class="confetti">✦ · ★ · ✦</div> }
+        <div class="badge"><span>{{ achievement.icon }}</span></div>
+        <span class="points">{{ achievement.points }} points</span>
+        <h3>{{ achievement.name }}</h3>
+        @if (achievement.unlocked) { <span class="unlocked">✓ Unlocked</span> } @else { <span class="locked-label">Locked · {{ achievement.points - fitness.totalPoints() }} points to go</span> }
+      </article>
+    }
+  </section>
+</div>

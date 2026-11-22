@@ -1,0 +1,20 @@
+<div class="page reward-page">
+  @if (unlocked) {
+    <div class="celebration">
+      @for (dot of [1,2,3,4,5,6,7,8,9,10,11,12]; track dot) { <i [style]="{'--i':dot}">✦</i> }
+      <h1>YOU DID IT, DHANI!</h1><p>Your year of movement, strength, and consistency unlocked the ultimate reward.</p>
+    </div>
+  }
+  <section class="reward-hero">
+    <div class="phone-wrap"><div class="phone"><div class="phone-notch"></div><div class="phone-screen"><span>D</span><small>QUEST<br>COMPLETE</small></div></div></div>
+    <div class="reward-copy">
+      <span class="kicker">{{ unlocked ? 'UNLOCKED' : 'YOUR ULTIMATE REWARD' }}</span>
+      <h1>{{ unlocked ? 'It is officially yours!' : 'iPhone' }}</h1>
+      <p>Earn 1,820 points to unlock your iPhone.</p>
+      <div class="points-line"><strong>{{ fitness.totalPoints() }}</strong><span> / 1,820 points</span></div>
+      <div class="reward-progress"><span [style.width]="fitness.percentage() + '%'"></span></div>
+      <p class="remaining">{{ remaining }} points remaining</p>
+      @if (!unlocked) { <a class="work-button" routerLink="/workouts">Continue the quest</a> }
+    </div>
+  </section>
+</div>

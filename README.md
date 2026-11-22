@@ -1,59 +1,37 @@
-# DhaniFitness
+# Dhani's Fitness Quest
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.4.
+Angular 21 app for tracking Dhani's fitness challenge. Parent and child use separate Supabase Auth accounts linked to one shared challenge. Child access is limited in the app and by database policies: Dhani can view the challenge and submit workouts, while only the parent can approve workouts or change settings.
 
-## Development server
+## Supabase setup
 
-To start a local development server, run:
+1. In the Supabase dashboard, open **SQL Editor** and run [`supabase/schema.sql`](./supabase/schema.sql). If you already ran an earlier version, run this updated script to add account linking and role-based policies.
+2. In **Authentication → Settings**, turn off public sign-ups and **Confirm email**. The app maps usernames to reserved internal aliases, not real email addresses, so confirmation and email-based password recovery are unavailable.
+3. Keep the project's URL and **publishable key** in [`src/environments/environment.ts`](./src/environments/environment.ts). These values are public in a browser build. Never add a Supabase secret/service-role key to this Angular app, GitHub Pages, or a committed file.
+4. In **Authentication → Users**, privately create two confirmed users: `parentadmin@example.com` and `dhanifitness@example.com`. Set separate strong passwords there. These addresses are internal aliases, not inboxes.
+5. Sign in as `parentAdmin` and open **Parent Zone → Link Dhani's account → Create invite code**.
+6. Sign out, choose **Dhani**, and sign in as `DhaniFitness` with the one-time invite code. The code can be used once and expires after seven days.
 
-```bash
-ng serve
-```
+The usernames map internally to reserved Supabase Auth email aliases; no real email is shown or required. Public sign-up is disabled so nobody can claim the fixed usernames. Passwords are set privately in Supabase Auth and are never stored in this source code. Since the aliases cannot receive email, reset a forgotten password through the Supabase dashboard. Never reuse a password shared in chat.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Challenge progress is stored in a parent-owned cloud record. Dhani's authenticated account can read it and submit workouts through a restricted database function; it cannot edit approvals, points, or settings. The parent account controls the challenge. If an earlier version has local progress under `dhani-fitness-quest-v1`, the first parent sign-in migrates it when no cloud record exists and removes that legacy progress from local storage.
 
-## Code scaffolding
+Supabase Auth stores its login session in the browser. Challenge progress itself is loaded from and saved to Supabase. If Supabase is unavailable or the table/policies are not configured, the app displays a sync error rather than saving challenge progress locally.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Development
 
 ```bash
-ng generate --help
+npm install
+npm start
 ```
 
-## Building
-
-To build the project run:
+## Production build
 
 ```bash
-ng build
+npm run build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## GitHub Pages
 
-## Running unit tests
+The workflow at [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) builds and deploys the site from `main`, `master`, or `feature/parent-child-supabase-auth`. In the repository's **Settings → Pages**, choose **GitHub Actions** as the build and deployment source. The workflow publishes to `https://priyeshaithub.github.io/dhaniFitness/`; it builds with the repository base path and includes an SPA fallback for Angular routes.
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The Supabase URL and publishable key are public browser settings. Configure the Supabase Auth Site URL to the deployed URL if you later enable any email redirect flows.

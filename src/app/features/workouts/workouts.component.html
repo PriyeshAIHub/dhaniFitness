@@ -1,0 +1,52 @@
+<div class="page">
+  <div class="title-row"><div><span class="kicker">52-WEEK CHALLENGE</span><h1>My Workouts</h1></div><div class="phase-pill">Week {{ fitness.currentWeek() }} of 52</div></div>
+  @for (phase of [1,2,3,4]; track phase) {
+    <section class="phase-section">
+      <div class="phase-heading"><span>PHASE {{ phase }}</span><h2>{{ phaseName(phase) }}</h2></div>
+      @for (week of fitness.state().weeks; track week.number) {
+        @if (week.phase === phase) {
+          <article class="week-card" [class.paused]="week.paused">
+            <button class="week-toggle" (click)="toggle(week)" [attr.aria-expanded]="expanded() === week.number">
+              <div><span>WEEK {{ week.number }}</span><strong>{{ week.paused ? 'Paused' : (week.workouts[0].title + ' · ' + week.workouts[1].title + ' · Adventure') }}</strong></div>
+              <span class="week-status">{{ week.workouts.every(w => w.status === 'approved') ? '✓ Complete' : expanded() === week.number ? '−' : '+' }}</span>
+            </button>
+            @if (expanded() === week.number) {
+              <div class="workout-list">
+                @for (workout of week.workouts; track workout.id) {
+                  <div class="workout-row">
+                    <div class="row-icon" [class]="workout.type">{{ workout.type === 'strength' ? '▰' : workout.type === 'adventure' ? '✦' : '◉' }}</div>
+                    <div class="row-copy"><small>{{ workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div>
+                    <span class="duration">{{ workout.duration }} min</span>
+                    <button class="status-button" [class.pending]="workout.status === 'pending'" [class.approved]="workout.status === 'approved'"
+                      (click)="instructions(workout.id, week.number)">
+                      {{ statusLabel(workout.status) }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </article>
+        }
+      }
+    </section>
+  }
+
+  @if (selectedWorkout(); as workout) {
+    <div class="modal-backdrop" (click)="instructions(workout.id, workout.week)">
+      <section class="instructions-modal" role="dialog" aria-modal="true" aria-label="Workout instructions" (click)="$event.stopPropagation()">
+        <button class="close" (click)="instructions(workout.id, workout.week)" aria-label="Close">×</button>
+        <span class="kicker">{{ workout.day }} · {{ workout.duration }} MINUTES</span>
+        <h2>{{ workout.title }}</h2><p>{{ workout.description }}</p>
+        <ol>@for (step of workout.instructions; track step) {<li>{{ step }}</li>}</ol>
+        <p class="safety">Adult supervision is encouraged. Skip or pause for sickness, injury, tiredness, or any uncomfortable feelings. Rest is always okay.</p>
+        @if (workout.status === 'not-started') {
+          <button class="primary-button" (click)="submit(workout.week, workout.id)">Mark workout complete</button>
+        } @else if (workout.status === 'pending') {
+          <button class="secondary-button" disabled>Waiting for parent approval</button>
+        } @else {
+          <button class="approved-button" disabled>✓ Approved</button>
+        }
+      </section>
+    </div>
+  }
+</div>
