@@ -12,7 +12,7 @@
       @if (pending.length === 0) { <div class="empty">No workouts are waiting for approval.</div> }
       @for (item of pending; track item.workout.id) {
         <div class="approval-row">
-          <div><strong>{{ item.workout.title }}</strong><small>Week {{ item.week.number }} · Submitted {{ dateLabel(item.workout.submittedAt) }}</small></div>
+          <div><strong>{{ item.workout.title }}</strong><small>Week {{ item.week.number }} · Completed {{ item.workout.completedDay ?? item.workout.day }} · Submitted {{ dateLabel(item.workout.submittedAt) }}</small></div>
           <button class="approve" (click)="approve(item.week.number,item.workout.id)">Approve</button>
           <button class="reject" (click)="reject(item.week.number,item.workout.id)">Reject</button>
         </div>
@@ -36,15 +36,15 @@
     </article>
   </section>
   <section class="panel program">
-    <h2>52-week program</h2>
-    @for (week of fitness.state().weeks; track week.number) {
+    <h2>Ongoing program</h2>
+    @for (week of fitness.visibleWeeks(); track week.number) {
       <details [open]="week.number === fitness.currentWeek()">
-        <summary><span>Week {{ week.number }}</span><strong>{{ week.phase === 1 ? 'Getting Started' : week.phase === 2 ? 'Building Strength' : week.phase === 3 ? 'Growing Stronger' : 'Fitness Champion' }}</strong><button type="button" (click)="$event.preventDefault(); togglePause(week.number)">{{ week.paused ? 'Resume' : 'Pause' }}</button></summary>
+        <summary><span>Week {{ week.number }} · {{ fitness.weekDateRange(week) }}</span><strong>{{ week.phase === 1 ? 'Getting Started' : week.phase === 2 ? 'Building Strength' : week.phase === 3 ? 'Growing Stronger' : 'Fitness Champion' }}</strong><button type="button" (click)="$event.preventDefault(); togglePause(week.number)">{{ week.paused ? 'Resume' : 'Pause' }}</button></summary>
         @for (workout of week.workouts; track workout.id) {
           @if (editing() === workout.id) {
             <div class="edit-row"><input [(ngModel)]="editTitle" [name]="'title-'+workout.id"><textarea [(ngModel)]="editDescription" [name]="'desc-'+workout.id"></textarea><button (click)="saveEdit(week.number,workout.id)">Save</button></div>
           } @else {
-            <div class="program-row"><div><small>{{ workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div><button (click)="beginEdit(week.number,workout.id)">Edit</button></div>
+            <div class="program-row"><div><small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div><button (click)="beginEdit(week.number,workout.id)">Edit</button></div>
           }
         }
       </details>

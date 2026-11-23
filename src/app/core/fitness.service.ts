@@ -3,10 +3,18 @@ import { supabase } from './supabase.client';
 
 export type WorkoutStatus = 'not-started' | 'pending' | 'approved';
 export type AccountRole = 'parent' | 'child';
+export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+export type Weekday = typeof WEEKDAYS[number];
+
+export function isWeekday(value: string): value is Weekday {
+  return (WEEKDAYS as readonly string[]).includes(value);
+}
+
 export interface Workout {
   id: string;
   week: number;
   day: string;
+  completedDay?: Weekday;
   type: 'endurance' | 'strength' | 'adventure';
   title: string;
   description: string;
@@ -19,6 +27,8 @@ export interface Workout {
 export interface Week {
   number: number;
   phase: number;
+  startDate: string;
+  endDate: string;
   paused: boolean;
   workouts: Workout[];
   bonusAwarded: boolean;
@@ -45,6 +55,7 @@ export class FitnessService {
   private challengeOwnerId: string | null = null;
   private loadSequence = 0;
   private saveQueue: Promise<void> = Promise.resolve();
+  private readonly today = signal(this.dateKey(new Date()));
   readonly loading = signal(true);
   readonly ready = signal(false);
   readonly role = signal<AccountRole | null>(null);
@@ -58,7 +69,7 @@ export class FitnessService {
       points += approved * 10;
       if (approved === 3) points += 5;
     }
-    return points;
+    return Math.min(1820, points);
   });
   readonly approvedWorkouts = computed(() =>
     this.state().weeks.flatMap(w => w.workouts).filter(w => w.status === 'approved').length
@@ -67,24 +78,75 @@ export class FitnessService {
     this.state().weeks.filter(w => w.workouts.every(x => x.status === 'approved')).length
   );
   readonly percentage = computed(() => Math.min(100, Math.round(this.totalPoints() / 1820 * 100)));
-  readonly currentWeek = computed(() => {
-    const start = new Date(this.state().startDate + 'T12:00:00');
-    const elapsed = Math.floor((Date.now() - start.getTime()) / 604800000);
-    return Math.max(1, Math.min(52, elapsed + 1));
-  });
+  readonly currentWeek = computed(() => this.weekNumberFor(this.state().startDate));
+  readonly visibleWeeks = computed(() =>
+    this.state().weeks.filter(week => week.number <= this.currentWeek() + 10)
+  );
   readonly achievements = computed(() => MILESTONES.map(m => ({
     ...m,
     unlocked: this.totalPoints() >= m.points
   })));
 
+  constructor() {
+    setInterval(() => {
+      const currentDate = this.dateKey(new Date());
+      if (currentDate === this.today()) return;
+      this.today.set(currentDate);
+      this.extendHorizonForCurrentDate();
+    }, 60_000);
+  }
+
   private defaultState(): ChallengeState {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const startDate = this.dateKey(start);
+    return {
+      startDate,
+      weeks: this.createWeeks(1, this.weekNumberFor(startDate) + 10, startDate),
+      achievementHistory: [],
+    };
+  }
+
+  private dateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private isDateKey(value: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
+      new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  }
+
+  private addDays(date: string, days: number): string {
+    const value = new Date(`${date}T12:00:00`);
+    value.setDate(value.getDate() + days);
+    return this.dateKey(value);
+  }
+
+  private weekNumberFor(startDate: string): number {
+    const start = Date.parse(`${startDate}T00:00:00Z`);
+    const today = Date.parse(`${this.today()}T00:00:00Z`);
+    if (!Number.isFinite(start) || !Number.isFinite(today)) return 1;
+    return Math.max(1, Math.floor((today - start) / 86_400_000 / 7) + 1);
+  }
+
+  private createWeeks(first: number, last: number, challengeStartDate: string): Week[] {
     const weeks: Week[] = [];
-    for (let number = 1; number <= 52; number++) {
+    for (let number = first; number <= last; number++) {
       const phase = number <= 13 ? 1 : number <= 26 ? 2 : number <= 39 ? 3 : 4;
       const phaseLevel = number <= 13 ? 'Easy' : number <= 26 ? 'Steady' : number <= 39 ? 'Strong' : 'Champion';
+      const startDate = this.addDays(challengeStartDate, (number - 1) * 7);
+      const baseDuration = Math.min(40, 20 + Math.floor(number / 13) * 5);
+      const duration = Math.max(30, baseDuration);
+      const adventureDuration = Math.max(30, Math.min(45, baseDuration + 5));
       weeks.push({
         number,
         phase,
+        startDate,
+        endDate: this.addDays(startDate, 6),
         paused: false,
         bonusAwarded: false,
         workouts: [
@@ -95,7 +157,7 @@ export class FitnessService {
             type: 'endurance',
             title: 'Run & Endurance',
             description: `${phaseLevel} walk-and-run intervals with time for recovery.`,
-            duration: 20 + Math.floor(number / 13) * 5,
+            duration,
             status: 'not-started',
             instructions: [
               'Warm up with 5 minutes of relaxed walking.',
@@ -110,7 +172,7 @@ export class FitnessService {
             type: 'strength',
             title: 'Leg Strength',
             description: `${phaseLevel} bodyweight exercises with careful form and rest.`,
-            duration: 20 + Math.floor(number / 13) * 5,
+            duration,
             status: 'not-started',
             instructions: [
               'Warm up with marching and gentle ankle circles.',
@@ -119,13 +181,13 @@ export class FitnessService {
             ],
           },
           {
-            id: `w${number}-sat`,
+            id: `w${number}-fri`,
             week: number,
-            day: 'Saturday',
+            day: 'Friday',
             type: 'adventure',
             title: 'Fun Run / Adventure',
             description: 'Enjoy an outdoor walk, run, park visit, or family movement challenge.',
-            duration: 25 + Math.floor(number / 13) * 5,
+            duration: adventureDuration,
             status: 'not-started',
             instructions: [
               'Choose a safe adult-supervised route or activity.',
@@ -136,9 +198,34 @@ export class FitnessService {
         ],
       });
     }
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    return { startDate: start.toISOString().slice(0, 10), weeks, achievementHistory: [] };
+    return weeks;
+  }
+
+  private ensureWeekHorizon(challenge: ChallengeState): ChallengeState {
+    const existing = new Map(challenge.weeks.map(week => [week.number, week]));
+    const lastWeek = Math.max(
+      this.weekNumberFor(challenge.startDate) + 10,
+      ...challenge.weeks.map(week => week.number),
+    );
+    const weeks: Week[] = [];
+    for (let number = 1; number <= lastWeek; number++) {
+      const startDate = this.addDays(challenge.startDate, (number - 1) * 7);
+      const oldWeek = existing.get(number);
+      if (oldWeek) {
+        weeks.push({ ...oldWeek, startDate, endDate: this.addDays(startDate, 6) });
+      } else {
+        weeks.push(this.createWeeks(number, number, challenge.startDate)[0]);
+      }
+    }
+    return { ...challenge, weeks };
+  }
+
+  private extendHorizonForCurrentDate(): void {
+    const previous = this.state();
+    const extended = this.ensureWeekHorizon(previous);
+    if (JSON.stringify(extended) === JSON.stringify(previous)) return;
+    this.state.set(extended);
+    if (this.ready() && this.role() === 'parent') this.persist();
   }
 
   async loadForUser(
@@ -247,6 +334,7 @@ export class FitnessService {
     if (sequence !== this.loadSequence) return;
 
     let loadedState: ChallengeState;
+    let shouldSaveNormalizedState = false;
     if (challengeData) {
       const normalized = this.normalizeChallengeState(challengeData.state);
       if (!normalized) {
@@ -254,6 +342,7 @@ export class FitnessService {
         return;
       }
       loadedState = normalized;
+      shouldSaveNormalizedState = JSON.stringify(challengeData.state) !== JSON.stringify(normalized);
     } else {
       if (role === 'child') {
         this.failLoad('The parent challenge has not been initialized yet. Ask the parent to sign in first.');
@@ -310,6 +399,7 @@ export class FitnessService {
     }
     this.ready.set(true);
     this.loading.set(false);
+    if (shouldSaveNormalizedState && role === 'parent') this.persist();
   }
 
   private failLoad(message: string): void {
@@ -322,20 +412,45 @@ export class FitnessService {
     if (!this.isChallengeState(value)) return null;
     const normalized = JSON.parse(JSON.stringify(value)) as ChallengeState & { pin?: string };
     delete normalized.pin;
-    return normalized;
+    for (const week of normalized.weeks) {
+      for (const workout of week.workouts) {
+        if (workout.type === 'adventure' && workout.status === 'not-started' && workout.day === 'Saturday') {
+          workout.day = 'Friday';
+        }
+        if (workout.duration === 20 || workout.duration === 25) {
+          workout.duration = 30;
+        }
+      }
+    }
+    return this.ensureWeekHorizon(normalized);
   }
 
   private isChallengeState(value: unknown): value is ChallengeState {
     if (typeof value !== 'object' || value === null) return false;
     const state = value as Partial<ChallengeState>;
     return typeof state.startDate === 'string' &&
+      this.isDateKey(state.startDate) &&
       Array.isArray(state.weeks) &&
-      state.weeks.length === 52 &&
       state.weeks.every(week =>
         typeof week === 'object' && week !== null &&
+        Number.isInteger(week.number) && week.number > 0 &&
         Array.isArray(week.workouts) && week.workouts.length === 3
       ) &&
       Array.isArray(state.achievementHistory);
+  }
+
+  weekDateRange(week: Week): string {
+    const format = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return `${format(week.startDate)} – ${format(week.endDate)}`;
+  }
+
+  canSubmitWorkout(weekNumber: number): boolean {
+    const week = this.state().weeks.find(item => item.number === weekNumber);
+    return !!week && weekNumber <= this.currentWeek() && !week.paused;
   }
 
   private persist(): void {
@@ -362,9 +477,14 @@ export class FitnessService {
     });
   }
 
-  submitWorkout(weekNumber: number, workoutId: string): void {
+  submitWorkout(weekNumber: number, workoutId: string, completedDay: string): void {
+    if (!this.canSubmitWorkout(weekNumber)) return;
+    if (!isWeekday(completedDay)) {
+      this.syncError.set('Choose a valid weekday for this workout.');
+      return;
+    }
     if (this.role() === 'child') {
-      void this.submitChildWorkout(weekNumber, workoutId);
+      void this.submitChildWorkout(weekNumber, workoutId, completedDay);
       return;
     }
     if (this.role() !== 'parent') return;
@@ -372,14 +492,17 @@ export class FitnessService {
       if (w.status === 'approved' || w.status === 'pending') return;
       w.status = 'pending';
       w.submittedAt = new Date().toISOString();
+      w.completedDay = completedDay;
     });
   }
 
-  private async submitChildWorkout(weekNumber: number, workoutId: string): Promise<void> {
+  private async submitChildWorkout(weekNumber: number, workoutId: string, completedDay: Weekday): Promise<void> {
+    if (!this.canSubmitWorkout(weekNumber)) return;
     try {
       const { error } = await supabase.rpc('submit_workout', {
         p_week_number: weekNumber,
         p_workout_id: workoutId,
+        p_completed_day: completedDay,
       });
       if (error) {
         this.syncError.set(`Could not submit workout: ${error.message}`);
@@ -389,6 +512,7 @@ export class FitnessService {
         if (workout.status === 'not-started') {
           workout.status = 'pending';
           workout.submittedAt = new Date().toISOString();
+          workout.completedDay = completedDay;
         }
       }, false);
       this.syncError.set('');
@@ -411,6 +535,7 @@ export class FitnessService {
     this.updateWorkout(weekNumber, workoutId, w => {
       if (w.status === 'pending') w.status = 'not-started';
       w.submittedAt = undefined;
+      w.completedDay = undefined;
     });
   }
 
@@ -472,7 +597,11 @@ export class FitnessService {
 
   setStartDate(date: string): void {
     if (this.role() !== 'parent') return;
-    this.state.set({ ...this.state(), startDate: date });
+    if (!this.isDateKey(date)) {
+      this.syncError.set('Please choose a valid challenge start date.');
+      return;
+    }
+    this.state.set(this.ensureWeekHorizon({ ...this.state(), startDate: date }));
     this.persist();
   }
 

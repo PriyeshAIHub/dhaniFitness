@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FitnessService, Week } from '../../core/fitness.service';
+import { FitnessService, isWeekday, Week, Weekday, WEEKDAYS, Workout } from '../../core/fitness.service';
 
 @Component({
   standalone: true,
@@ -13,6 +13,8 @@ export class WorkoutsComponent {
   readonly expanded = signal<number>(this.fitness.currentWeek());
   readonly instructionWeek = signal<number | null>(null);
   readonly instructionId = signal<string | null>(null);
+  readonly weekdays = WEEKDAYS;
+  readonly selectedDays: Record<string, Weekday> = {};
 
   phaseName(phase: number) {
     return ['Getting Started', 'Building Strength', 'Growing Stronger', 'Fitness Champion'][phase - 1];
@@ -29,9 +31,24 @@ export class WorkoutsComponent {
     return this.selectedWeek()?.workouts.find(w => w.id === this.instructionId()) ?? null;
   }
   submit(weekNumber: number, workoutId: string) {
-    this.fitness.submitWorkout(weekNumber, workoutId);
+    const workout = this.selectedWorkout();
+    if (workout) this.fitness.submitWorkout(weekNumber, workoutId, this.selectedDay(workout));
+  }
+  selectedDay(workout: Workout): Weekday {
+    return this.selectedDays[workout.id] ?? workout.completedDay ??
+      (isWeekday(workout.day) ? workout.day : 'Monday');
+  }
+  setDay(workoutId: string, event: Event) {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement && isWeekday(target.value)) {
+      this.selectedDays[workoutId] = target.value;
+    }
   }
   statusLabel(status: string) {
     return status === 'approved' ? 'Approved' : status === 'pending' ? 'Pending parent approval' : 'Not started';
+  }
+  availabilityLabel(weekNumber: number) {
+    const week = this.fitness.state().weeks.find(item => item.number === weekNumber);
+    return week?.paused ? 'Paused by parent' : 'Available when this week begins';
   }
 }

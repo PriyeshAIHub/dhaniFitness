@@ -1,7 +1,7 @@
 <div class="page dashboard">
   <section class="hero">
     <div class="hero-copy">
-      <span class="eyebrow">WEEK {{ fitness.currentWeek() }} · YOUR FITNESS ADVENTURE</span>
+      <span class="eyebrow">WEEK {{ fitness.currentWeek() }} · {{ fitness.weekDateRange(currentWeek) }}</span>
       <h1>Hey Dhani! <span>Ready for your next adventure?</span></h1>
       <p>Your fitness adventure continues!</p>
     </div>
@@ -18,12 +18,12 @@
       <div><small>Total points</small><strong>{{ fitness.totalPoints() }}</strong><span>/ 1,820</span></div>
     </article>
     <article class="stat-card"><span class="stat-icon purple">✓</span><div><small>Workouts</small><strong>{{ fitness.approvedWorkouts() }}</strong><span>approved</span></div></article>
-    <article class="stat-card"><span class="stat-icon pink">Ⅲ</span><div><small>Current week</small><strong>{{ fitness.currentWeek() }}</strong><span>of 52</span></div></article>
+    <article class="stat-card"><span class="stat-icon pink">Ⅲ</span><div><small>Current week</small><strong>{{ fitness.currentWeek() }}</strong><span>{{ fitness.weekDateRange(currentWeek) }}</span></div></article>
     <article class="stat-card"><span class="stat-icon coral">◆</span><div><small>Weeks completed</small><strong>{{ fitness.completedWeeks() }}</strong><span>keep going!</span></div></article>
   </section>
 
   <section class="section-block">
-    <div class="section-heading"><div><span class="kicker">THIS WEEK</span><h2>Your missions</h2></div><a routerLink="/workouts">View all 52 weeks →</a></div>
+    <div class="section-heading"><div><span class="kicker">THIS WEEK</span><h2>Your missions</h2></div><a routerLink="/workouts">View challenge weeks →</a></div>
     <div class="mission-grid">
       @for (workout of currentWeek.workouts; track workout.id) {
         <article class="mission-card">
@@ -31,12 +31,21 @@
             <span class="mission-icon" [class]="workout.type">{{ workoutIcon(workout.type) }}</span>
             <span class="status" [class.approved]="workout.status === 'approved'" [class.pending]="workout.status === 'pending'">{{ statusLabel(workout.status) }}</span>
           </div>
-          <small>{{ workout.day }}</small>
+          <small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small>
           <h3>{{ workout.title }}</h3>
           <p>{{ workout.description }}</p>
           <div class="mission-meta"><span>◷ {{ workout.duration }} min</span><span>+10 pts</span></div>
           @if (workout.status === 'not-started') {
-            <button class="primary-button" (click)="submit(workout.id)">Mark complete</button>
+            @if (fitness.canSubmitWorkout(currentWeek.number)) {
+              <label class="day-select">Day completed
+                <select [value]="selectedDay(workout)" (change)="setDay(workout.id, $event)">
+                  @for (day of weekdays; track day) { <option [value]="day">{{ day }}</option> }
+                </select>
+              </label>
+              <button class="primary-button" (click)="submit(workout)">Mark complete</button>
+            } @else {
+              <button class="secondary-button" disabled>Paused by parent</button>
+            }
           } @else if (workout.status === 'pending') {
             <button class="secondary-button" disabled>Waiting for approval</button>
           } @else {

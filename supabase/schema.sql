@@ -60,6 +60,7 @@ create policy "Parents and linked children can read challenge"
   );
 
 drop policy if exists "Users can create their own challenge" on public.fitness_challenges;
+drop policy if exists "Parents can create their challenge" on public.fitness_challenges;
 create policy "Parents can create their challenge"
   on public.fitness_challenges for insert
   to authenticated
@@ -72,6 +73,7 @@ create policy "Parents can create their challenge"
   );
 
 drop policy if exists "Users can update their own challenge" on public.fitness_challenges;
+drop policy if exists "Parents can update their challenge" on public.fitness_challenges;
 create policy "Parents can update their challenge"
   on public.fitness_challenges for update
   to authenticated
@@ -91,6 +93,7 @@ create policy "Parents can update their challenge"
   );
 
 drop policy if exists "Users can delete their own challenge" on public.fitness_challenges;
+drop policy if exists "Parents can delete their challenge" on public.fitness_challenges;
 create policy "Parents can delete their challenge"
   on public.fitness_challenges for delete
   to authenticated
@@ -205,7 +208,12 @@ begin
 end;
 $$;
 
-create or replace function public.submit_workout(p_week_number integer, p_workout_id text)
+drop function if exists public.submit_workout(integer, text);
+create or replace function public.submit_workout(
+  p_week_number integer,
+  p_workout_id text,
+  p_completed_day text
+)
 returns void
 language plpgsql
 security definer
@@ -215,6 +223,7 @@ declare
   challenge_owner uuid;
   week_index integer;
   week_is_paused boolean;
+  week_start_date date;
   workout_index integer;
   workout_status text;
   workout_path text[];
@@ -226,10 +235,20 @@ begin
   if challenge_owner is null then
     raise exception 'Linked child account required';
   end if;
+  if p_completed_day is null or p_completed_day not in (
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ) then
+    raise exception 'A valid completed weekday is required';
+  end if;
 
   select (week_item.ordinality - 1)::integer,
-         coalesce((week_item.value ->> 'paused')::boolean, false)
-  into week_index, week_is_paused
+         coalesce((week_item.value ->> 'paused')::boolean, false),
+         coalesce(
+           (week_item.value ->> 'startDate')::date,
+           (challenge.state ->> 'startDate')::date +
+             (((week_item.value ->> 'number')::integer - 1) * 7)
+         )
+  into week_index, week_is_paused, week_start_date
   from public.fitness_challenges challenge,
        jsonb_array_elements(challenge.state -> 'weeks') with ordinality as week_item(value, ordinality)
   where challenge.user_id = challenge_owner
@@ -240,6 +259,9 @@ begin
   end if;
   if week_is_paused then
     raise exception 'This challenge week is paused';
+  end if;
+  if week_start_date > current_date then
+    raise exception 'This challenge week has not started yet';
   end if;
 
   select (workout_item.ordinality - 1)::integer,
@@ -267,7 +289,8 @@ begin
         workout_path,
         (state #> workout_path) || jsonb_build_object(
           'status', 'pending',
-          'submittedAt', to_jsonb(now()::text)
+          'submittedAt', to_jsonb(now()::text),
+          'completedDay', p_completed_day
         ),
         false
       ),
@@ -279,9 +302,9 @@ $$;
 revoke all on function public.create_parent_account() from public, anon;
 revoke all on function public.create_child_invite() from public, anon;
 revoke all on function public.link_child_account(text) from public, anon;
-revoke all on function public.submit_workout(integer, text) from public, anon;
+revoke all on function public.submit_workout(integer, text, text) from public, anon;
 
 grant execute on function public.create_parent_account() to authenticated;
 grant execute on function public.create_child_invite() to authenticated;
 grant execute on function public.link_child_account(text) to authenticated;
-grant execute on function public.submit_workout(integer, text) to authenticated;
+grant execute on function public.submit_workout(integer, text, text) to authenticated;

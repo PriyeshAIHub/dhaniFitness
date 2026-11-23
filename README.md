@@ -15,6 +15,8 @@ The usernames map internally to reserved Supabase Auth email aliases; no real em
 
 Challenge progress is stored in a parent-owned cloud record. Dhani's authenticated account can read it and submit workouts through a restricted database function; it cannot edit approvals, points, or settings. The parent account controls the challenge. If an earlier version has local progress under `dhani-fitness-quest-v1`, the first parent sign-in migrates it when no cloud record exists and removes that legacy progress from local storage.
 
+The challenge is continuous: week numbers and Monday-to-Sunday date ranges are generated as needed. The app keeps all past weeks and the next 10 upcoming weeks in the saved challenge, while showing only past and near-future weeks. Workouts are scheduled for Monday, Wednesday, and Friday by default; Dhani can select the weekday she actually completed a workout when submitting it. Re-run the updated `supabase/schema.sql` if the database was previously configured; the workout submission function validates the chosen weekday and rejects future weeks.
+
 Supabase Auth stores its login session in the browser. Challenge progress itself is loaded from and saved to Supabase. If Supabase is unavailable or the table/policies are not configured, the app displays a sync error rather than saving challenge progress locally.
 
 ## Development
