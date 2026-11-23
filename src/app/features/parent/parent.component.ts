@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../core/auth.service';
 import { FitnessService, Week } from '../../core/fitness.service';
 
 @Component({
@@ -11,9 +12,15 @@ import { FitnessService, Week } from '../../core/fitness.service';
 })
 export class ParentComponent {
   readonly fitness = inject(FitnessService);
+  readonly auth = inject(AuthService);
   startDate = this.fitness.state().startDate;
   readonly programWeekNumber = signal(this.fitness.currentWeek());
   editing = signal<string | null>(null);
+  readonly savingPassword = signal(false);
+  readonly passwordMessage = signal('');
+  readonly passwordMessageIsError = signal(false);
+  newPassword = '';
+  confirmPassword = '';
   editTitle = '';
   editDescription = '';
 
@@ -42,6 +49,40 @@ export class ParentComponent {
   }
   undoApproval(weekNumber: number, workoutId: string) {
     this.fitness.undoApproval(weekNumber, workoutId);
+  }
+  async changePassword() {
+    this.passwordMessage.set('');
+    this.passwordMessageIsError.set(false);
+    if (this.fitness.role() !== 'parent') {
+      this.passwordMessage.set('Only the parent account can change this password.');
+      this.passwordMessageIsError.set(true);
+      return;
+    }
+    if (this.newPassword.length < 8) {
+      this.passwordMessage.set('Use a password with at least 8 characters.');
+      this.passwordMessageIsError.set(true);
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.passwordMessage.set('The passwords do not match.');
+      this.passwordMessageIsError.set(true);
+      return;
+    }
+
+    this.savingPassword.set(true);
+    try {
+      const error = await this.auth.updatePassword(this.newPassword);
+      if (error) {
+        this.passwordMessage.set(`Could not change password: ${error}`);
+        this.passwordMessageIsError.set(true);
+        return;
+      }
+      this.newPassword = '';
+      this.confirmPassword = '';
+      this.passwordMessage.set('Password changed. Use the new password the next time you sign in.');
+    } finally {
+      this.savingPassword.set(false);
+    }
   }
   beginEdit(weekNumber: number, workoutId: string) {
     const week = this.fitness.state().weeks.find(w => w.number === weekNumber);

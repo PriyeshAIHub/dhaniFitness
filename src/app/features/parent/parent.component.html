@@ -23,6 +23,23 @@
       <label>Challenge start date<input type="date" [(ngModel)]="startDate" name="startDate"></label>
       <button class="save" (click)="saveStartDate()">Save date</button>
       <div class="data-actions"><button (click)="exportData()">Export JSON</button><button class="reset" (click)="reset()">Reset challenge</button><button class="clear" (click)="clear()">Clear cloud data</button></div>
+      <div class="password-settings">
+        <h3>Change parent password</h3>
+        <form class="password-form" (submit)="changePassword(); $event.preventDefault()">
+          <label>New password
+            <input [(ngModel)]="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          </label>
+          <label>Confirm new password
+            <input [(ngModel)]="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          </label>
+          <button class="save" type="submit" [disabled]="savingPassword()">
+            {{ savingPassword() ? 'Saving…' : 'Change password' }}
+          </button>
+        </form>
+        @if (passwordMessage()) {
+          <p class="password-message" [class.error]="passwordMessageIsError()" role="status">{{ passwordMessage() }}</p>
+        }
+      </div>
     </article>
   </section>
   <section class="panel program">

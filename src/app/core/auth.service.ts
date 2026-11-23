@@ -47,6 +47,15 @@ export class AuthService {
     }
   }
 
+  async updatePassword(password: string): Promise<string | null> {
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      return error?.message ?? null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+
   roleForUser(user: User | null): AccountRole | null {
     const email = user?.email?.toLowerCase();
     return (Object.entries(accountIdentities).find(([, identity]) =>
