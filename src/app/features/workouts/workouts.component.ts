@@ -16,6 +16,7 @@ export class WorkoutsComponent {
   readonly instructionId = signal<string | null>(null);
   readonly editingWorkoutId = signal<string | null>(null);
   readonly savingWorkout = signal(false);
+  readonly withdrawingWorkoutId = signal<string | null>(null);
   readonly weekdays = WEEKDAYS;
   readonly selectedDays: Record<string, Weekday> = {};
   editTitle = '';
@@ -69,6 +70,14 @@ export class WorkoutsComponent {
       if (saved) this.editingWorkoutId.set(null);
     } finally {
       this.savingWorkout.set(false);
+    }
+  }
+  async takeBack(workout: Workout) {
+    this.withdrawingWorkoutId.set(workout.id);
+    try {
+      await this.fitness.withdrawChildWorkout(workout.week, workout.id);
+    } finally {
+      this.withdrawingWorkoutId.set(null);
     }
   }
   submit(weekNumber: number, workoutId: string) {

@@ -406,14 +406,82 @@ begin
 end;
 $$;
 
+create or replace function public.withdraw_workout(
+  p_week_number integer,
+  p_workout_id text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  challenge_owner uuid;
+  week_index integer;
+  workout_index integer;
+  workout_status text;
+  workout_path text[];
+begin
+  select parent_id into challenge_owner
+  from public.fitness_accounts
+  where user_id = auth.uid() and role = 'child';
+
+  if challenge_owner is null then
+    raise exception 'Linked child account required';
+  end if;
+
+  select (week_item.ordinality - 1)::integer
+  into week_index
+  from public.fitness_challenges challenge,
+       jsonb_array_elements(challenge.state -> 'weeks') with ordinality as week_item(value, ordinality)
+  where challenge.user_id = challenge_owner
+    and (week_item.value ->> 'number')::integer = p_week_number;
+
+  if week_index is null then
+    raise exception 'Challenge week not found';
+  end if;
+
+  select (workout_item.ordinality - 1)::integer,
+         workout_item.value ->> 'status'
+  into workout_index, workout_status
+  from public.fitness_challenges challenge,
+       jsonb_array_elements(
+         challenge.state -> 'weeks' -> week_index -> 'workouts'
+       ) with ordinality as workout_item(value, ordinality)
+  where challenge.user_id = challenge_owner
+    and workout_item.value ->> 'id' = p_workout_id;
+
+  if workout_index is null then
+    raise exception 'Workout not found';
+  end if;
+  if workout_status is distinct from 'pending' then
+    raise exception 'Only workouts waiting for approval can be taken back';
+  end if;
+
+  workout_path := array['weeks', week_index::text, 'workouts', workout_index::text];
+  update public.fitness_challenges
+  set state = jsonb_set(
+        state,
+        workout_path,
+        ((state #> workout_path) - 'submittedAt' - 'completedDay' - 'approvedAt') ||
+          jsonb_build_object('status', 'not-started'),
+        false
+      ),
+      updated_at = now()
+  where user_id = challenge_owner;
+end;
+$$;
+
 revoke all on function public.create_parent_account() from public, anon;
 revoke all on function public.create_child_invite() from public, anon;
 revoke all on function public.link_child_account(text) from public, anon;
 revoke all on function public.submit_workout(integer, text, text) from public, anon;
 revoke all on function public.edit_child_workout(integer, text, text, text, integer, jsonb) from public, anon;
+revoke all on function public.withdraw_workout(integer, text) from public, anon;
 
 grant execute on function public.create_parent_account() to authenticated;
 grant execute on function public.create_child_invite() to authenticated;
 grant execute on function public.link_child_account(text) to authenticated;
 grant execute on function public.submit_workout(integer, text, text) to authenticated;
 grant execute on function public.edit_child_workout(integer, text, text, text, integer, jsonb) to authenticated;
+grant execute on function public.withdraw_workout(integer, text) to authenticated;

@@ -37,9 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build Angular app
-        run: npm run build -- --base-href /dhaniFitness/
+        run: npm run build -- --base-href /
       - name: Add SPA fallback
         run: cp dist/DhaniFitness/browser/index.html dist/DhaniFitness/browser/404.html
+      - name: Include custom domain configuration
+        run: cp CNAME dist/DhaniFitness/browser/CNAME
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

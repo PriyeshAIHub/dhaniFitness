@@ -596,6 +596,58 @@ export class FitnessService {
     });
   }
 
+  undoApproval(weekNumber: number, workoutId: string): void {
+    if (this.role() !== 'parent') return;
+    const workout = this.state().weeks
+      .find(week => week.number === weekNumber)?.workouts
+      .find(item => item.id === workoutId);
+    if (workout?.status !== 'approved') return;
+    this.updateWorkout(weekNumber, workoutId, item => {
+      item.status = 'pending';
+      item.approvedAt = undefined;
+    });
+  }
+
+  async withdrawChildWorkout(weekNumber: number, workoutId: string): Promise<boolean> {
+    if (this.role() !== 'child') {
+      this.syncError.set('Only Dhani can take back a submitted workout.');
+      return false;
+    }
+    const workout = this.state().weeks
+      .find(week => week.number === weekNumber)?.workouts
+      .find(item => item.id === workoutId);
+    if (!workout || workout.status !== 'pending') {
+      this.syncError.set('Only workouts waiting for approval can be taken back.');
+      return false;
+    }
+
+    const userId = this.currentUserId;
+    try {
+      const { error } = await supabase.rpc('withdraw_workout', {
+        p_week_number: weekNumber,
+        p_workout_id: workoutId,
+      });
+      if (userId !== this.currentUserId) return false;
+      if (error) {
+        this.syncError.set(`Could not take back workout: ${error.message}`);
+        return false;
+      }
+
+      this.updateWorkout(weekNumber, workoutId, item => {
+        if (item.status !== 'pending') return;
+        item.status = 'not-started';
+        item.submittedAt = undefined;
+        item.completedDay = undefined;
+        item.approvedAt = undefined;
+      }, false);
+      this.syncError.set('');
+      return true;
+    } catch (error) {
+      this.syncError.set(`Could not take back workout: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
+
   private updateWorkout(
     weekNumber: number,
     workoutId: string,

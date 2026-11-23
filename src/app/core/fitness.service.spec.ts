@@ -102,4 +102,70 @@ describe('FitnessService continuous weeks', () => {
 
     expect(rpc).not.toHaveBeenCalled();
   });
+
+  it('lets a parent undo approval and return the workout to pending', () => {
+    const fitness = TestBed.inject(FitnessService);
+    fitness.role.set('parent');
+    const workout = fitness.state().weeks[0].workouts[0];
+    fitness.state.update(state => ({
+      ...state,
+      weeks: state.weeks.map((week, index) => index === 0 ? {
+        ...week,
+        workouts: week.workouts.map(item => item.id === workout.id
+          ? { ...item, status: 'approved', submittedAt: '2025-01-06T12:00:00Z', approvedAt: '2025-01-06T13:00:00Z' }
+          : item),
+      } : week),
+    }));
+
+    fitness.undoApproval(1, workout.id);
+
+    expect(fitness.state().weeks[0].workouts[0]).toMatchObject({
+      status: 'pending',
+      submittedAt: '2025-01-06T12:00:00Z',
+      approvedAt: undefined,
+    });
+    expect(fitness.approvedWorkouts()).toBe(0);
+  });
+
+  it('lets Dhani withdraw a pending workout through the restricted RPC', async () => {
+    const fitness = TestBed.inject(FitnessService);
+    const rpc = vi.spyOn(supabase, 'rpc');
+    rpc.mockImplementation(() => Promise.resolve({ data: null, error: null }) as never);
+    fitness.role.set('child');
+    const workout = fitness.state().weeks[0].workouts[0];
+    fitness.state.update(state => ({
+      ...state,
+      weeks: state.weeks.map((week, index) => index === 0 ? {
+        ...week,
+        workouts: week.workouts.map(item => item.id === workout.id
+          ? { ...item, status: 'pending', submittedAt: '2025-01-06T12:00:00Z', completedDay: 'Monday' }
+          : item),
+      } : week),
+    }));
+
+    await expect(fitness.withdrawChildWorkout(1, workout.id)).resolves.toBe(true);
+
+    expect(rpc).toHaveBeenCalledWith('withdraw_workout', {
+      p_week_number: 1,
+      p_workout_id: workout.id,
+    });
+    expect(fitness.state().weeks[0].workouts[0]).toMatchObject({
+      status: 'not-started',
+      submittedAt: undefined,
+      completedDay: undefined,
+    });
+  });
+
+  it('does not let Dhani withdraw a workout that is not pending', async () => {
+    const fitness = TestBed.inject(FitnessService);
+    const rpc = vi.spyOn(supabase, 'rpc');
+    fitness.role.set('child');
+
+    await expect(fitness.withdrawChildWorkout(
+      1,
+      fitness.state().weeks[0].workouts[0].id,
+    )).resolves.toBe(false);
+
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });

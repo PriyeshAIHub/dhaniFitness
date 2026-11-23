@@ -27,17 +27,31 @@
   </section>
   <section class="panel program">
     <h2>Ongoing program</h2>
-    @for (week of fitness.visibleWeeks(); track week.number) {
-      <details [open]="week.number === fitness.currentWeek()">
-        <summary><span>Week {{ week.number }} · {{ fitness.weekDateRange(week) }}</span><strong>{{ week.phase === 1 ? 'Getting Started' : week.phase === 2 ? 'Building Strength' : week.phase === 3 ? 'Growing Stronger' : 'Fitness Champion' }}</strong><button type="button" (click)="$event.preventDefault(); togglePause(week.number)">{{ week.paused ? 'Resume' : 'Pause' }}</button></summary>
-        @for (workout of week.workouts; track workout.id) {
-          @if (editing() === workout.id) {
-            <div class="edit-row"><input [(ngModel)]="editTitle" [name]="'title-'+workout.id"><textarea [(ngModel)]="editDescription" [name]="'desc-'+workout.id"></textarea><button (click)="saveEdit(week.number,workout.id)">Save</button></div>
-          } @else {
-            <div class="program-row"><div><small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div><button (click)="beginEdit(week.number,workout.id)">Edit</button></div>
-          }
+    @if (programWeek; as week) {
+      <nav class="program-navigation" aria-label="Program week navigation">
+        <button type="button" (click)="previousWeek()" [disabled]="programWeekNumber() <= 1">← Previous week</button>
+        <div><strong>Week {{ week.number }}</strong><small>{{ fitness.weekDateRange(week) }}</small></div>
+        <button type="button" (click)="nextWeek()" [disabled]="programWeekNumber() >= lastVisibleWeek">Next week →</button>
+      </nav>
+      <div class="program-week-heading">
+        <strong>{{ week.phase === 1 ? 'Getting Started' : week.phase === 2 ? 'Building Strength' : week.phase === 3 ? 'Growing Stronger' : 'Fitness Champion' }}</strong>
+        <button type="button" (click)="togglePause(week.number)">{{ week.paused ? 'Resume week' : 'Pause week' }}</button>
+      </div>
+      @for (workout of week.workouts; track workout.id) {
+        @if (editing() === workout.id) {
+          <div class="edit-row"><input [(ngModel)]="editTitle" [name]="'title-'+workout.id"><textarea [(ngModel)]="editDescription" [name]="'desc-'+workout.id"></textarea><button (click)="saveEdit(week.number,workout.id)">Save</button></div>
+        } @else {
+          <div class="program-row">
+            <div><small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div>
+            <div class="program-actions">
+              <button type="button" (click)="beginEdit(week.number,workout.id)">Edit</button>
+              @if (workout.status === 'approved') {
+                <button class="undo-approval" type="button" (click)="undoApproval(week.number,workout.id)">Undo approval</button>
+              }
+            </div>
+          </div>
         }
-      </details>
+      }
     }
   </section>
 </div>

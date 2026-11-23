@@ -12,9 +12,19 @@ import { FitnessService, Week } from '../../core/fitness.service';
 export class ParentComponent {
   readonly fitness = inject(FitnessService);
   startDate = this.fitness.state().startDate;
+  readonly programWeekNumber = signal(this.fitness.currentWeek());
   editing = signal<string | null>(null);
   editTitle = '';
   editDescription = '';
+
+  get programWeek(): Week | undefined {
+    return this.fitness.visibleWeeks().find(week => week.number === this.programWeekNumber());
+  }
+
+  get lastVisibleWeek(): number {
+    const weeks = this.fitness.visibleWeeks();
+    return weeks[weeks.length - 1]?.number ?? this.fitness.currentWeek();
+  }
 
   get pending() {
     return this.fitness.state().weeks.flatMap(week =>
@@ -24,6 +34,15 @@ export class ParentComponent {
 
   approve(weekNumber: number, workoutId: string) { this.fitness.approveWorkout(weekNumber, workoutId); }
   reject(weekNumber: number, workoutId: string) { this.fitness.rejectWorkout(weekNumber, workoutId); }
+  previousWeek() {
+    this.programWeekNumber.update(week => Math.max(1, week - 1));
+  }
+  nextWeek() {
+    this.programWeekNumber.update(week => Math.min(this.lastVisibleWeek, week + 1));
+  }
+  undoApproval(weekNumber: number, workoutId: string) {
+    this.fitness.undoApproval(weekNumber, workoutId);
+  }
   beginEdit(weekNumber: number, workoutId: string) {
     const week = this.fitness.state().weeks.find(w => w.number === weekNumber);
     const workout = week?.workouts.find(w => w.id === workoutId);

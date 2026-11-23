@@ -8,3 +8,6 @@
 .edit-hint{margin:-16px 0 22px;color:#756a78;font-size:.86rem}.edit-session-button{border:1px solid #edc5da;border-radius:10px;padding:10px;background:#fff3f9;color:#b93272;font-size:.75rem;font-weight:800;white-space:nowrap}
 @media(min-width:621px){.workout-row.editable{grid-template-columns:44px 1fr 70px 120px 155px}}
 @media(max-width:620px){.edit-session-button{grid-column:2;width:100%}}
+@media(min-width:621px){.workout-row.withdrawable{grid-template-columns:44px 1fr 70px 105px 155px}}
+.withdraw-row-button{border:1px solid #f1c9c9;border-radius:10px;padding:10px;background:#fff2f2;color:#a95252;font-size:.75rem;font-weight:800;white-space:nowrap}.withdraw-row-button:disabled{opacity:.65}
+@media(max-width:620px){.withdraw-row-button{grid-column:2;width:100%}}
