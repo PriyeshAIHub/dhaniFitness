@@ -24,7 +24,7 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('DHANI’S ACCOUNT');
-    expect(compiled.textContent).toContain('Parent’s one-time invite code');
+    expect(compiled.textContent).not.toContain('Parent’s one-time invite code');
     expect(fixture.componentInstance.username).toBe('DhaniFitness');
     expect(fixture.componentInstance.navItems.some(item => item.path === '/parent')).toBe(false);
   });

@@ -231,7 +231,6 @@ export class FitnessService {
   async loadForUser(
     userId: string | null,
     requestedRole: AccountRole = 'parent',
-    inviteCode = '',
   ): Promise<void> {
     if (userId === this.currentUserId && (this.loading() || this.ready() || !userId)) return;
     const sequence = ++this.loadSequence;
@@ -271,17 +270,8 @@ export class FitnessService {
             return;
           }
         } else {
-          if (!inviteCode.trim()) {
-            this.failLoad('Ask the parent to create a one-time invite code, then enter it to link this account.');
-            return;
-          }
-          const linked = await supabase.rpc('link_child_account', {
-            p_invite_code: inviteCode.trim(),
-          });
-          if (linked.error) {
-            this.failLoad(`Could not link Dhani's account: ${linked.error.message}`);
-            return;
-          }
+          this.failLoad("Dhani's account is not linked to the parent challenge. Ask the parent to finish account setup.");
+          return;
         }
 
         result = await supabase
@@ -521,6 +511,73 @@ export class FitnessService {
     }
   }
 
+  async editChildWorkout(
+    weekNumber: number,
+    workoutId: string,
+    title: string,
+    description: string,
+    duration: number,
+    instructions: string[],
+  ): Promise<boolean> {
+    if (this.role() !== 'child') {
+      this.syncError.set('Only Dhani can edit her session details.');
+      return false;
+    }
+    if (!this.canSubmitWorkout(weekNumber)) {
+      this.syncError.set('This workout is paused or has not started yet.');
+      return false;
+    }
+    const workout = this.state().weeks
+      .find(week => week.number === weekNumber)?.workouts
+      .find(item => item.id === workoutId);
+    if (!workout || workout.status !== 'not-started') {
+      this.syncError.set('Only unsubmitted workouts can be edited.');
+      return false;
+    }
+    if (!title.trim() || title.trim().length > 120 ||
+        !description.trim() || description.trim().length > 1200 ||
+        !Number.isInteger(duration) || duration < 1 || duration > 240 ||
+        instructions.length < 1 || instructions.length > 8 ||
+        instructions.some(step => !step.trim() || step.trim().length > 240)) {
+      this.syncError.set('Check the session name, description, duration, and notes before saving.');
+      return false;
+    }
+
+    const userId = this.currentUserId;
+    try {
+      const { error } = await supabase.rpc('edit_child_workout', {
+        p_week_number: weekNumber,
+        p_workout_id: workoutId,
+        p_title: title.trim(),
+        p_description: description.trim(),
+        p_duration: duration,
+        p_instructions: instructions.map(step => step.trim()),
+      });
+      if (userId !== this.currentUserId) return false;
+      if (error) {
+        this.syncError.set(`Could not save session changes: ${error.message}`);
+        return false;
+      }
+
+      const weeks = this.state().weeks.map(week => week.number === weekNumber ? {
+        ...week,
+        workouts: week.workouts.map(item => item.id === workoutId ? {
+          ...item,
+          title: title.trim(),
+          description: description.trim(),
+          duration,
+          instructions: instructions.map(step => step.trim()),
+        } : item),
+      } : week);
+      this.state.update(state => ({ ...state, weeks }));
+      this.syncError.set('');
+      return true;
+    } catch (error) {
+      this.syncError.set(`Could not save session changes: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
+
   approveWorkout(weekNumber: number, workoutId: string): void {
     if (this.role() !== 'parent') return;
     this.updateWorkout(weekNumber, workoutId, w => {
@@ -613,22 +670,6 @@ export class FitnessService {
     if (this.role() !== 'parent') return;
     this.state.set(this.defaultState());
     this.persist();
-  }
-
-  async createChildInvite(): Promise<string> {
-    if (this.role() !== 'parent') return '';
-    try {
-      const { data, error } = await supabase.rpc('create_child_invite');
-      if (error) {
-        this.syncError.set(`Could not create a child invite: ${error.message}`);
-        return '';
-      }
-      this.syncError.set('');
-      return typeof data === 'string' ? data : '';
-    } catch (error) {
-      this.syncError.set(`Could not create a child invite: ${error instanceof Error ? error.message : String(error)}`);
-      return '';
-    }
   }
 
   async clearAll(): Promise<void> {

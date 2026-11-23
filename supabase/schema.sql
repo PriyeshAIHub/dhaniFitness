@@ -299,12 +299,121 @@ begin
 end;
 $$;
 
+create or replace function public.edit_child_workout(
+  p_week_number integer,
+  p_workout_id text,
+  p_title text,
+  p_description text,
+  p_duration integer,
+  p_instructions jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  challenge_owner uuid;
+  week_index integer;
+  week_is_paused boolean;
+  week_start_date date;
+  workout_index integer;
+  workout_status text;
+  workout_path text[];
+begin
+  select parent_id into challenge_owner
+  from public.fitness_accounts
+  where user_id = auth.uid() and role = 'child';
+
+  if challenge_owner is null then
+    raise exception 'Linked child account required';
+  end if;
+  if p_title is null or length(btrim(p_title)) not between 1 and 120 or
+     p_description is null or length(btrim(p_description)) not between 1 and 1200 or
+     p_duration is null or p_duration not between 1 and 240 then
+    raise exception 'Session details are invalid';
+  end if;
+  if p_instructions is null or jsonb_typeof(p_instructions) is distinct from 'array' then
+    raise exception 'Session notes must be a JSON array';
+  end if;
+  if jsonb_array_length(p_instructions) not between 1 and 8 then
+    raise exception 'Session notes must contain between 1 and 8 steps';
+  end if;
+  if exists (
+    select 1
+    from jsonb_array_elements(p_instructions) as step(value)
+    where jsonb_typeof(step.value) <> 'string'
+       or length(btrim(step.value #>> '{}')) not between 1 and 240
+  ) then
+    raise exception 'Session notes contain an invalid step';
+  end if;
+
+  select (week_item.ordinality - 1)::integer,
+         coalesce((week_item.value ->> 'paused')::boolean, false),
+         coalesce(
+           (week_item.value ->> 'startDate')::date,
+           (challenge.state ->> 'startDate')::date +
+             (((week_item.value ->> 'number')::integer - 1) * 7)
+         )
+  into week_index, week_is_paused, week_start_date
+  from public.fitness_challenges challenge,
+       jsonb_array_elements(challenge.state -> 'weeks') with ordinality as week_item(value, ordinality)
+  where challenge.user_id = challenge_owner
+    and (week_item.value ->> 'number')::integer = p_week_number;
+
+  if week_index is null then
+    raise exception 'Challenge week not found';
+  end if;
+  if week_is_paused then
+    raise exception 'This challenge week is paused';
+  end if;
+  if week_start_date > current_date then
+    raise exception 'This challenge week has not started yet';
+  end if;
+
+  select (workout_item.ordinality - 1)::integer,
+         workout_item.value ->> 'status'
+  into workout_index, workout_status
+  from public.fitness_challenges challenge,
+       jsonb_array_elements(
+         challenge.state -> 'weeks' -> week_index -> 'workouts'
+       ) with ordinality as workout_item(value, ordinality)
+  where challenge.user_id = challenge_owner
+    and workout_item.value ->> 'id' = p_workout_id;
+
+  if workout_index is null then
+    raise exception 'Workout not found';
+  end if;
+  if workout_status is distinct from 'not-started' then
+    raise exception 'Only unsubmitted workouts can be edited';
+  end if;
+
+  workout_path := array['weeks', week_index::text, 'workouts', workout_index::text];
+  update public.fitness_challenges
+  set state = jsonb_set(
+        state,
+        workout_path,
+        (state #> workout_path) || jsonb_build_object(
+          'title', btrim(p_title),
+          'description', btrim(p_description),
+          'duration', p_duration,
+          'instructions', p_instructions
+        ),
+        false
+      ),
+      updated_at = now()
+  where user_id = challenge_owner;
+end;
+$$;
+
 revoke all on function public.create_parent_account() from public, anon;
 revoke all on function public.create_child_invite() from public, anon;
 revoke all on function public.link_child_account(text) from public, anon;
 revoke all on function public.submit_workout(integer, text, text) from public, anon;
+revoke all on function public.edit_child_workout(integer, text, text, text, integer, jsonb) from public, anon;
 
 grant execute on function public.create_parent_account() to authenticated;
 grant execute on function public.create_child_invite() to authenticated;
 grant execute on function public.link_child_account(text) to authenticated;
 grant execute on function public.submit_workout(integer, text, text) to authenticated;
+grant execute on function public.edit_child_workout(integer, text, text, text, integer, jsonb) to authenticated;

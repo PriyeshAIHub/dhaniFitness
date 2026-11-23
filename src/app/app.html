@@ -18,12 +18,6 @@
       <form (submit)="submitAuth(); $event.preventDefault()">
         <label>Username<input [(ngModel)]="username" name="username" type="text" autocomplete="username" readonly></label>
         <label>Password<input [(ngModel)]="password" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
-        @if (authRole === 'child') {
-          <label>Parent’s one-time invite code
-            <input [(ngModel)]="childInviteCode" name="childInviteCode" autocomplete="off" placeholder="Enter code from Parent Zone">
-          </label>
-          <small class="invite-help">Needed when linking a new Dhani account. Ask your parent for a code.</small>
-        }
         @if (auth.error()) { <p class="auth-error" role="alert">{{ auth.error() }}</p> }
         <button class="auth-submit" type="submit" [disabled]="auth.busy()">
           {{ auth.busy() ? 'Please wait…' : 'Sign in' }}
@@ -43,11 +37,6 @@
         <button [class.selected]="authRole === 'parent'" (click)="chooseRole('parent')">Parent</button>
         <button [class.selected]="authRole === 'child'" (click)="chooseRole('child')">Dhani</button>
       </div>
-      @if (authRole === 'child') {
-        <label class="invite-retry">Parent’s one-time invite code
-          <input [(ngModel)]="childInviteCode" name="retryInviteCode" autocomplete="off">
-        </label>
-      }
       <button class="auth-submit" (click)="retryCloudLoad()">Continue</button>
       <button class="auth-switch" (click)="auth.signOut()">Sign out</button>
       <p class="auth-footnote">A child account can see the shared challenge but cannot approve workouts or change its settings.</p>

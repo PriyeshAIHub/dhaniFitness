@@ -11,7 +11,6 @@ import { FitnessService, Week } from '../../core/fitness.service';
 })
 export class ParentComponent {
   readonly fitness = inject(FitnessService);
-  inviteCode = '';
   startDate = this.fitness.state().startDate;
   editing = signal<string | null>(null);
   editTitle = '';
@@ -39,9 +38,6 @@ export class ParentComponent {
   }
   togglePause(weekNumber: number) { this.fitness.togglePause(weekNumber); }
   saveStartDate() { this.fitness.setStartDate(this.startDate); }
-  async createInvite() {
-    this.inviteCode = await this.fitness.createChildInvite();
-  }
   exportData() {
     const blob = new Blob([this.fitness.exportJson()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

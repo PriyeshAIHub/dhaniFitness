@@ -22,16 +22,6 @@
       <h2>Challenge settings</h2>
       <label>Challenge start date<input type="date" [(ngModel)]="startDate" name="startDate"></label>
       <button class="save" (click)="saveStartDate()">Save date</button>
-      <div class="child-invite">
-        <h3>Link Dhani's account</h3>
-        <p>Create a one-time code for Dhani to link her separate sign-in to this challenge. It expires in 7 days.</p>
-        <button class="save" (click)="createInvite()">Create invite code</button>
-        @if (inviteCode) {
-          <label>Share this code with Dhani
-            <input [value]="inviteCode" readonly aria-label="Dhani account invite code">
-          </label>
-        }
-      </div>
       <div class="data-actions"><button (click)="exportData()">Export JSON</button><button class="reset" (click)="reset()">Reset challenge</button><button class="clear" (click)="clear()">Clear cloud data</button></div>
     </article>
   </section>

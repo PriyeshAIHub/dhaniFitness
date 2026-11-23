@@ -16,7 +16,6 @@ export class App {
   username = 'parentAdmin';
   password = '';
   authRole: AccountRole = 'parent';
-  childInviteCode = '';
 
   constructor() {
     effect(() => {
@@ -31,7 +30,6 @@ export class App {
         void this.fitness.loadForUser(
           user?.id ?? null,
           this.authRole,
-          this.childInviteCode,
         );
       }
     });
@@ -45,7 +43,6 @@ export class App {
     void this.fitness.loadForUser(
       this.auth.user()?.id ?? null,
       this.authRole,
-      this.childInviteCode,
     );
   }
 
