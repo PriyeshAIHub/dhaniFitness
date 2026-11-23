@@ -5,3 +5,6 @@
 @media(max-width:620px){.workout-row{grid-template-columns:42px 1fr}.duration{display:none}.status-button{grid-column:2;width:100%}.title-row{align-items:center}.phase-pill{font-size:.72rem}}
 .day-select{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:.85rem;font-weight:800;color:#756a78}.day-select select{flex:1;min-width:0;border:1px solid #e8dfea;border-radius:10px;padding:10px;background:white;color:#514255;font:inherit}
 .workout-editor{display:grid;gap:12px;margin:14px 0}.workout-editor label{display:grid;gap:5px;font-size:.82rem;font-weight:800;color:#756a78}.workout-editor input,.workout-editor textarea{width:100%;border:1px solid #e8dfea;border-radius:10px;padding:10px;color:#514255;font:inherit}.workout-editor textarea{resize:vertical}.workout-editor label small{font-weight:500;color:#948596}.workout-editor .secondary-button{margin-top:-6px}
+.edit-hint{margin:-16px 0 22px;color:#756a78;font-size:.86rem}.edit-session-button{border:1px solid #edc5da;border-radius:10px;padding:10px;background:#fff3f9;color:#b93272;font-size:.75rem;font-weight:800;white-space:nowrap}
+@media(min-width:621px){.workout-row.editable{grid-template-columns:44px 1fr 70px 120px 155px}}
+@media(max-width:620px){.edit-session-button{grid-column:2;width:100%}}

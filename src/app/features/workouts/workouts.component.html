@@ -1,5 +1,8 @@
 <div class="page">
   <div class="title-row"><div><span class="kicker">ONGOING CHALLENGE</span><h1>My Workouts</h1></div><div class="phase-pill">Week {{ fitness.currentWeek() }}</div></div>
+  @if (fitness.role() === 'child') {
+    <p class="edit-hint">Personalize an unsubmitted workout with <strong>Edit session</strong> before marking it complete.</p>
+  }
   @for (phase of [1,2,3,4]; track phase) {
     <section class="phase-section">
       <div class="phase-heading"><span>PHASE {{ phase }}</span><h2>{{ phaseName(phase) }}</h2></div>
@@ -13,10 +16,13 @@
             @if (expanded() === week.number) {
               <div class="workout-list">
                 @for (workout of week.workouts; track workout.id) {
-                  <div class="workout-row">
+                  <div class="workout-row" [class.editable]="fitness.role() === 'child' && workout.status === 'not-started' && fitness.canSubmitWorkout(week.number)">
                     <div class="row-icon" [class]="workout.type">{{ workout.type === 'strength' ? '▰' : workout.type === 'adventure' ? '✦' : '◉' }}</div>
                     <div class="row-copy"><small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div>
                     <span class="duration">{{ workout.duration }} min</span>
+                    @if (fitness.role() === 'child' && workout.status === 'not-started' && fitness.canSubmitWorkout(week.number)) {
+                      <button class="edit-session-button" type="button" (click)="openEditor(workout)">Edit session</button>
+                    }
                     <button class="status-button" [class.pending]="workout.status === 'pending'" [class.approved]="workout.status === 'approved'"
                       (click)="instructions(workout.id, week.number)">
                       {{ statusLabel(workout.status) }}

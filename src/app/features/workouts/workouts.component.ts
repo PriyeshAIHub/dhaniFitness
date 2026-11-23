@@ -37,6 +37,11 @@ export class WorkoutsComponent {
   selectedWorkout() {
     return this.selectedWeek()?.workouts.find(w => w.id === this.instructionId()) ?? null;
   }
+  openEditor(workout: Workout) {
+    this.instructionId.set(workout.id);
+    this.instructionWeek.set(workout.week);
+    this.beginEdit(workout);
+  }
   beginEdit(workout: Workout) {
     if (this.fitness.role() !== 'child' || workout.status !== 'not-started' ||
         !this.fitness.canSubmitWorkout(workout.week)) return;
