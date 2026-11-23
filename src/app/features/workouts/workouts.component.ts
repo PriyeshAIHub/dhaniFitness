@@ -75,7 +75,7 @@ export class WorkoutsComponent {
   async takeBack(workout: Workout) {
     this.withdrawingWorkoutId.set(workout.id);
     try {
-      await this.fitness.withdrawChildWorkout(workout.week, workout.id);
+      await this.fitness.takeBackChildWorkout(workout.week, workout.id);
     } finally {
       this.withdrawingWorkoutId.set(null);
     }

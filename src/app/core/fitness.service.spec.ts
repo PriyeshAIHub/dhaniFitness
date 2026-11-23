@@ -127,7 +127,7 @@ describe('FitnessService continuous weeks', () => {
     expect(fitness.approvedWorkouts()).toBe(0);
   });
 
-  it('lets Dhani withdraw a pending workout through the restricted RPC', async () => {
+  it('lets Dhani take back a pending workout through the restricted RPC', async () => {
     const fitness = TestBed.inject(FitnessService);
     const rpc = vi.spyOn(supabase, 'rpc');
     rpc.mockImplementation(() => Promise.resolve({ data: null, error: null }) as never);
@@ -143,7 +143,7 @@ describe('FitnessService continuous weeks', () => {
       } : week),
     }));
 
-    await expect(fitness.withdrawChildWorkout(1, workout.id)).resolves.toBe(true);
+    await expect(fitness.takeBackChildWorkout(1, workout.id)).resolves.toBe(true);
 
     expect(rpc).toHaveBeenCalledWith('withdraw_workout', {
       p_week_number: 1,
@@ -156,12 +156,49 @@ describe('FitnessService continuous weeks', () => {
     });
   });
 
-  it('does not let Dhani withdraw a workout that is not pending', async () => {
+  it('lets Dhani undo an approval and take back the workout for editing', async () => {
+    const fitness = TestBed.inject(FitnessService);
+    const rpc = vi.spyOn(supabase, 'rpc');
+    rpc.mockImplementation(() => Promise.resolve({ data: null, error: null }) as never);
+    fitness.role.set('child');
+    const workout = fitness.state().weeks[0].workouts[0];
+    fitness.state.update(state => ({
+      ...state,
+      weeks: state.weeks.map((week, index) => index === 0 ? {
+        ...week,
+        workouts: week.workouts.map(item => item.id === workout.id
+          ? {
+              ...item,
+              status: 'approved',
+              submittedAt: '2025-01-06T12:00:00Z',
+              approvedAt: '2025-01-06T13:00:00Z',
+              completedDay: 'Monday',
+            }
+          : item),
+      } : week),
+    }));
+
+    await expect(fitness.takeBackChildWorkout(1, workout.id)).resolves.toBe(true);
+
+    expect(rpc).toHaveBeenCalledWith('withdraw_workout', {
+      p_week_number: 1,
+      p_workout_id: workout.id,
+    });
+    expect(fitness.state().weeks[0].workouts[0]).toMatchObject({
+      status: 'not-started',
+      submittedAt: undefined,
+      approvedAt: undefined,
+      completedDay: undefined,
+    });
+    expect(fitness.approvedWorkouts()).toBe(0);
+  });
+
+  it('does not let Dhani take back a workout that is not pending or approved', async () => {
     const fitness = TestBed.inject(FitnessService);
     const rpc = vi.spyOn(supabase, 'rpc');
     fitness.role.set('child');
 
-    await expect(fitness.withdrawChildWorkout(
+    await expect(fitness.takeBackChildWorkout(
       1,
       fitness.state().weeks[0].workouts[0].id,
     )).resolves.toBe(false);

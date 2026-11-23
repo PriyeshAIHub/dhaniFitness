@@ -454,8 +454,9 @@ begin
   if workout_index is null then
     raise exception 'Workout not found';
   end if;
-  if workout_status is distinct from 'pending' then
-    raise exception 'Only workouts waiting for approval can be taken back';
+  if workout_status is distinct from 'pending' and
+     workout_status is distinct from 'approved' then
+    raise exception 'Only pending or approved workouts can be taken back';
   end if;
 
   workout_path := array['weeks', week_index::text, 'workouts', workout_index::text];

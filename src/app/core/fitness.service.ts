@@ -608,16 +608,16 @@ export class FitnessService {
     });
   }
 
-  async withdrawChildWorkout(weekNumber: number, workoutId: string): Promise<boolean> {
+  async takeBackChildWorkout(weekNumber: number, workoutId: string): Promise<boolean> {
     if (this.role() !== 'child') {
-      this.syncError.set('Only Dhani can take back a submitted workout.');
+      this.syncError.set('Only Dhani can take back her workout.');
       return false;
     }
     const workout = this.state().weeks
       .find(week => week.number === weekNumber)?.workouts
       .find(item => item.id === workoutId);
-    if (!workout || workout.status !== 'pending') {
-      this.syncError.set('Only workouts waiting for approval can be taken back.');
+    if (!workout || (workout.status !== 'pending' && workout.status !== 'approved')) {
+      this.syncError.set('Only pending or approved workouts can be taken back.');
       return false;
     }
 
@@ -634,7 +634,7 @@ export class FitnessService {
       }
 
       this.updateWorkout(weekNumber, workoutId, item => {
-        if (item.status !== 'pending') return;
+        if (item.status !== 'pending' && item.status !== 'approved') return;
         item.status = 'not-started';
         item.submittedAt = undefined;
         item.completedDay = undefined;

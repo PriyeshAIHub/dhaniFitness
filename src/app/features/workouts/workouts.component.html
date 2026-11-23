@@ -18,16 +18,16 @@
                 @for (workout of week.workouts; track workout.id) {
                   <div class="workout-row"
                     [class.editable]="fitness.role() === 'child' && workout.status === 'not-started' && fitness.canSubmitWorkout(week.number)"
-                    [class.withdrawable]="fitness.role() === 'child' && workout.status === 'pending'">
+                    [class.withdrawable]="fitness.role() === 'child' && (workout.status === 'pending' || workout.status === 'approved')">
                     <div class="row-icon" [class]="workout.type">{{ workout.type === 'strength' ? '▰' : workout.type === 'adventure' ? '✦' : '◉' }}</div>
                     <div class="row-copy"><small>{{ workout.completedDay ? 'Completed ' + workout.completedDay : 'Scheduled ' + workout.day }}</small><strong>{{ workout.title }}</strong><p>{{ workout.description }}</p></div>
                     <span class="duration">{{ workout.duration }} min</span>
                     @if (fitness.role() === 'child' && workout.status === 'not-started' && fitness.canSubmitWorkout(week.number)) {
                       <button class="edit-session-button" type="button" (click)="openEditor(workout)">Edit session</button>
                     }
-                    @if (fitness.role() === 'child' && workout.status === 'pending') {
+                    @if (fitness.role() === 'child' && (workout.status === 'pending' || workout.status === 'approved')) {
                       <button class="withdraw-row-button" type="button" (click)="takeBack(workout)" [disabled]="withdrawingWorkoutId() === workout.id">
-                        {{ withdrawingWorkoutId() === workout.id ? 'Taking back…' : 'Take back' }}
+                        {{ withdrawingWorkoutId() === workout.id ? 'Taking back…' : workout.status === 'approved' ? 'Undo approval' : 'Take back' }}
                       </button>
                     }
                     <button class="status-button" [class.pending]="workout.status === 'pending'" [class.approved]="workout.status === 'approved'"

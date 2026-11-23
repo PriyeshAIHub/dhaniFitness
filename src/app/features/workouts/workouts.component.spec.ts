@@ -45,7 +45,7 @@ describe('WorkoutsComponent', () => {
           : item),
       } : week),
     }));
-    const takeBack = vi.spyOn(fitness, 'withdrawChildWorkout').mockResolvedValue(true);
+    const takeBack = vi.spyOn(fitness, 'takeBackChildWorkout').mockResolvedValue(true);
     const fixture = TestBed.createComponent(WorkoutsComponent);
     fixture.detectChanges();
 
