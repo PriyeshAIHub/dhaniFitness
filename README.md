@@ -34,6 +34,6 @@ npm run build
 
 ## GitHub Pages
 
-The workflow at [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) builds and deploys the site from `main`, `master`, or `feature/parent-child-supabase-auth`. In the repository's **Settings → Pages**, choose **GitHub Actions** as the build and deployment source. The workflow publishes to `https://priyeshaithub.github.io/dhaniFitness/`; it builds with the repository base path and includes an SPA fallback for Angular routes.
+The workflow at [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) builds and deploys the site from `main`, `master`, or `feature/parent-child-supabase-auth`. In the repository's **Settings → Pages**, choose **GitHub Actions** as the build and deployment source. The workflow publishes to `https://priyeshaihub.github.io/dhaniFitness/`; it builds with the repository base path and includes an SPA fallback for Angular routes.
 
 The Supabase URL and publishable key are public browser settings. Configure the Supabase Auth Site URL to the deployed URL if you later enable any email redirect flows.
